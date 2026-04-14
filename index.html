@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Para Minha Princesa</title>
+    <style>
+        body { 
+            margin: 0; 
+            background: #000; 
+            overflow: hidden; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            touch-action: none; 
+        }
+
+        canvas { 
+            display: block; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            z-index: 1; 
+        }
+        
+        /* --- BOTÃO INTERATIVO --- */
+        #btn { 
+            position: absolute; 
+            z-index: 100; 
+            padding: 20px 50px; 
+            font-size: 22px; 
+            font-weight: bold; 
+            background: linear-gradient(45deg, #ff2d55, #ff71ac);
+            color: white; 
+            border: none; 
+            border-radius: 60px; 
+            cursor: pointer; 
+            box-shadow: 0 0 25px rgba(255, 45, 85, 0.6);
+            text-transform: uppercase;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            outline: none;
+            animation: pulse 1.8s infinite;
+        }
+
+        #btn:hover { 
+            transform: scale(1.1); 
+            box-shadow: 0 0 50px rgba(255, 45, 85, 0.9);
+            letter-spacing: 3px;
+            background: linear-gradient(45deg, #ff4b6e, #ff9ecb);
+        }
+
+        #btn:active { 
+            transform: scale(0.9); 
+            filter: brightness(1.2);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 20px rgba(255, 45, 85, 0.5); }
+            50% { transform: scale(1.05); box-shadow: 0 0 40px rgba(255, 45, 85, 0.8); }
+            100% { transform: scale(1); box-shadow: 0 0 20px rgba(255, 45, 85, 0.5); }
+        }
+        /* ------------------------ */
+
+        #heart-container { 
+            opacity: 0; 
+            position: absolute; 
+            z-index: 10; 
+            pointer-events: none; 
+            transition: opacity 4s ease-in-out; 
+        }
+
+        .word { 
+            position: absolute; 
+            color: #ff9ecb; 
+            font-size: 19px; 
+            white-space: nowrap; 
+            text-shadow: 0 0 15px #fff, 0 0 20px #ff2d55; 
+            animation: flow 5s ease-in-out infinite; 
+            font-weight: bold; 
+            pointer-events: auto; 
+            transition: transform 0.3s ease;
+        }
+
+        .word:hover { transform: translate(-50%, -50%) scale(1.4); color: #fff; z-index: 1000; }
+
+        @keyframes flow { 
+            0%, 100% { transform: translate(-50%, -50%) translateY(-15px); opacity: 0.8; } 
+            50% { transform: translate(-50%, -50%) translateY(15px); opacity: 1; } 
+        }
+    </style>
+</head>
+<body>
+
+<audio id="musica" src="musica.mp3"></audio>
+<button id="btn">CLIQUE AQUI ❤️</button>
+<canvas id="c"></canvas>
+<div id="heart-container"></div>
+
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const btn = document.getElementById("btn");
+const heartContainer = document.getElementById("heart-container");
+const musica = document.getElementById("musica");
+
+let stars = [];
+let bgStars = [];
+let mouse = { x: -2000, y: -2000 };
+let index = 0;
+let finalMode = false;
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resize);
+resize();
+
+const sequence = [
+    { text: "Ohhh, AMOR eu poderia te AMAR...", time: 4300 },
+    { text: "Até o dia em que eu morrer", time: 3300 },
+    { text: "Até os OCEANO começarem a secar", time: 3100 },
+    { text: "Usaria meu último suspiro...", time: 2600 },
+    { text: "Para te chamar de MINHA", time: 2200 },
+    { text: "Eu poderia te AMAR...", time: 1900 },
+    { text: "Por uma vida inteira", time: 1800 },
+    { text: "Minha mão na sua", time: 1900 },
+    { text: "Até o dia em que morrermos", time: 2000 },
+    { text: "Até as ESTRELAS caírem do CÉU", time: 3200 },
+    { text: "Te segurando perto...", time: 2300 },
+    { text: "Até meu CORAÇÃO parar", time: 2300 },
+    { text: "Eu poderia te AMAR...", time: 1900 },
+    { text: "POR UMA VIDA INTEIRA ❤️", time: 3000 }
+];
+
+function Star() {
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.targetX = this.x; this.targetY = this.y;
+    this.vx = 0; this.vy = 0;
+    this.size = Math.random() * 2 + 0.8; 
+    this.color = "#ffffff";
+    this.alpha = 1;
+}
+
+Star.prototype.explode = function() {
+    const angle = Math.random() * Math.PI * 2;
+    const force = Math.random() * 20 + 5; 
+    this.vx = Math.cos(angle) * force;
+    this.vy = Math.sin(angle) * force;
+};
+
+Star.prototype.update = function() {
+    if (finalMode) {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vx *= 0.96;
+        this.vy *= 0.96;
+        this.alpha *= 0.96; 
+    } else {
+        this.vx += (this.targetX - this.x) * 0.05;
+        this.vy += (this.targetY - this.y) * 0.04;
+
+        let dx = this.x - mouse.x;
+        let dy = this.y - mouse.y;
+        let d = dx*dx + dy*dy;
+        if (d < 10000) {
+            let f = (10000 - d) / 10000;
+            this.vx += (dx / Math.sqrt(d)) * f * 10;
+            this.vy += (dy / Math.sqrt(d)) * f * 10;
+        }
+
+        this.vx *= 0.7; 
+        this.vy *= 0.7;
+        this.x += this.vx; this.y += this.vy;
+    }
+};
+
+Star.prototype.draw = function() {
+    if (this.alpha <= 0.01) return;
+    ctx.globalAlpha = this.alpha;
+    ctx.fillStyle = this.color;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fill();
+};
+
+function BgStar() {
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.vy = Math.random() * 0.4 + 0.2;
+    this.vx = 0;
+    this.size = Math.random() * 1.5 + 0.5;
+}
+
+BgStar.prototype.draw = function() {
+    this.y += this.vy;
+    this.x += this.vx;
+
+    let dx = this.x - mouse.x;
+    let dy = this.y - mouse.y;
+    let dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 120) {
+        let f = (120 - dist) / 120;
+        this.vx += (dx / dist) * f * 2;
+    }
+    this.vx *= 0.92;
+
+    if (this.y > canvas.height) { this.y = -5; this.x = Math.random() * canvas.width; }
+    
+    ctx.globalAlpha = 0.8;
+    ctx.fillStyle = "#fff"; 
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
+};
+
+for (let i = 0; i < 1900; i++) stars.push(new Star());
+for (let i = 0; i < 500; i++) bgStars.push(new BgStar());
+
+function getPoints(text) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let fSize = Math.min(canvas.width / (text.length * 0.52), 105); 
+    ctx.font = `bold ${fSize}px sans-serif`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+
+    const words = text.split(" ");
+    let totalWidth = ctx.measureText(text).width;
+    let startX = (canvas.width - totalWidth) / 2;
+    let y = canvas.height / 2;
+
+    words.forEach(word => {
+        let cleanWord = word.replace(/[.,!❤️]/g, "").toUpperCase();
+        
+        ctx.fillStyle = "#ffffff"; 
+
+        if (["AMOR", "MINHA", "CORAÇÃO", "AMAR"].includes(cleanWord)) {
+            ctx.fillStyle = "#ff0000"; 
+        } else if (cleanWord === "OCEANO") {
+            ctx.fillStyle = "#87cefa"; 
+        } else if (cleanWord === "ESTRELAS") {
+            ctx.fillStyle = "#ffff00"; 
+        } else if (cleanWord === "CÉU") {
+            ctx.fillStyle = "#87cefa"; 
+        }
+        
+        ctx.fillText(word, startX + ctx.measureText(word).width / 2, y);
+        startX += ctx.measureText(word + " ").width;
+    });
+
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    let pts = [];
+    for (let py = 0; py < canvas.height; py += 6) {
+        for (let px = 0; px < canvas.width; px += 6) {
+            let i = (py * canvas.width + px) * 4;
+            if (data[i + 3] > 128) {
+                pts.push({ x: px, y: py, color: `rgb(${data[i]},${data[i+1]},${data[i+2]})` });
+            }
+        }
+    }
+    return pts;
+}
+
+function startFinalHeart() {
+    finalMode = true;
+    heartContainer.style.opacity = "1";
+    heartContainer.style.pointerEvents = "auto";
+    stars.forEach(s => s.explode());
+
+    const textStr = "eu te amo, princesa 💖";
+    const totalWords = 85;
+
+    for (let i = 0; i < totalWords; i++) {
+        let t = i / totalWords * Math.PI * 2;
+        let x = 16 * Math.pow(Math.sin(t), 3);
+        let y = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+        let span = document.createElement("span");
+        span.className = "word";
+        span.innerText = textStr;
+        span.style.left = (x * 14.5) + "px";
+        span.style.top = (y * 14.5) + "px";
+        span.style.animationDelay = (-i * 0.1) + "s";
+        heartContainer.appendChild(span);
+    }
+}
+
+function next() {
+    if (index < sequence.length) {
+        let current = sequence[index];
+        stars.forEach(s => s.explode());
+        setTimeout(() => {
+            let pts = getPoints(current.text);
+            stars.forEach((s, i) => {
+                let p = pts[i % pts.length];
+                s.targetX = p.x; s.targetY = p.y;
+                s.color = p.color;
+            });
+        }, 50);
+        index++;
+        setTimeout(next, current.time);
+    } else {
+        setTimeout(startFinalHeart, 1000);
+    }
+}
+
+// Botão com transição de saída suave
+btn.onclick = () => {
+    btn.style.pointerEvents = "none";
+    btn.style.transition = "opacity 1s ease, transform 1s ease";
+    btn.style.opacity = "0";
+    btn.style.transform = "scale(2) rotate(5deg)"; 
+
+    setTimeout(() => {
+        btn.style.display = "none";
+    }, 1000);
+
+    musica.currentTime = 1.0; 
+    musica.play();
+    next();
+};
+
+function loop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    bgStars.forEach(b => b.draw());
+    stars.forEach(s => { s.update(); s.draw(); });
+    requestAnimationFrame(loop);
+}
+loop();
+
+const handlePos = (e) => {
+    const pos = e.touches ? e.touches[0] : e;
+    mouse.x = pos.clientX; mouse.y = pos.clientY;
+};
+window.addEventListener("mousemove", handlePos);
+window.addEventListener("touchmove", handlePos);
+</script>
+</body>
+</html>
